@@ -2,7 +2,7 @@
 
 Plan, visualize, and validate your home AV / media device setup — no install, no server, no build tools.
 
-**[Live Demo](https://yongwoon123.github.io/home-media-device-planner)**
+**[Live Demo](https://yongwoon123.github.io/Home-Media-Device-Planner/)**
 
 ---
 
@@ -42,7 +42,7 @@ Plan, visualize, and validate your home AV / media device setup — no install, 
 ## How to Use
 
 ### Option 1 — Live demo (no download)
-Open the [live demo](https://yongwoon123.github.io/home-media-device-planner) in any modern browser. Nothing to install.
+Open the [live demo](https://yongwoon123.github.io/Home-Media-Device-Planner/) in any modern browser. Nothing to install.
 
 ### Option 2 — Run locally
 1. Download `index.html` and `visualizer.html`
