@@ -1154,19 +1154,36 @@
     document.addEventListener('mousemove', onDragMove);
     document.addEventListener('mouseup',   onDragEnd);
 
-    // Restore last session from localStorage
+    // Restore last session from localStorage, else load sample.json as demo
     (function loadSavedState() {
       const raw = localStorage.getItem('homemediaplan');
-      if (!raw) return;
-      try {
-        const s = JSON.parse(raw);
-        if (Array.isArray(s.devices))     devices     = s.devices;
-        if (Array.isArray(s.connections)) connections = s.connections;
-        if (Array.isArray(s.areas))       areas       = s.areas;
-        if (typeof s.deviceCounter     === 'number') deviceCounter     = s.deviceCounter;
-        if (typeof s.connectionCounter === 'number') connectionCounter = s.connectionCounter;
-        if (typeof s.areaCounter       === 'number') areaCounter       = s.areaCounter;
-      } catch (e) { /* corrupt storage — start fresh */ }
+      if (raw) {
+        try {
+          const s = JSON.parse(raw);
+          if (Array.isArray(s.devices))     devices     = s.devices;
+          if (Array.isArray(s.connections)) connections = s.connections;
+          if (Array.isArray(s.areas))       areas       = s.areas;
+          if (typeof s.deviceCounter     === 'number') deviceCounter     = s.deviceCounter;
+          if (typeof s.connectionCounter === 'number') connectionCounter = s.connectionCounter;
+          if (typeof s.areaCounter       === 'number') areaCounter       = s.areaCounter;
+          return; // loaded from localStorage — done
+        } catch (e) { /* corrupt storage — fall through to sample.json */ }
+      }
+      // No saved plan (or corrupt) — load sample.json as demo
+      fetch('sample.json')
+        .then(r => r.json())
+        .then(s => {
+          if (Array.isArray(s.devices))     devices     = s.devices;
+          if (Array.isArray(s.connections)) connections = s.connections;
+          if (Array.isArray(s.areas))       areas       = s.areas;
+          if (typeof s.deviceCounter     === 'number') deviceCounter     = s.deviceCounter;
+          if (typeof s.connectionCounter === 'number') connectionCounter = s.connectionCounter;
+          if (typeof s.areaCounter       === 'number') areaCounter       = s.areaCounter;
+          renderAreas();
+          renderDevices();
+          renderConnections();
+        })
+        .catch(() => {}); // silent if sample.json not found (e.g. file:// in some browsers)
     })();
 
     renderAreas();
