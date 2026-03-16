@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Media Device Planner</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 1100px; margin: 40px auto; padding: 0 20px; color: #222; }
+    h1 { margin-bottom: 8px; }
+    h2 { margin-top: 36px; margin-bottom: 8px; font-size: 1.1rem; color: #444; text-transform: uppercase; letter-spacing: 0.04em; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    th { background: #f0f0f0; text-align: left; padding: 8px 10px; font-size: 0.85rem; border: 1px solid #ddd; }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background: #e0e0e0; }
+    th.sort-active { background: #dce8f8; color: #1565c0; }
+    td { padding: 6px 8px; border: 1px solid #e0e0e0; vertical-align: middle; }
+    input[type="text"], input[type="number"], select { width: 100%; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 0.9rem; }
+    input[type="number"] { width: 70px; }
+    button { cursor: pointer; padding: 5px 12px; border-radius: 3px; border: 1px solid #aaa; background: #f8f8f8; font-size: 0.85rem; }
+    button:hover { background: #ebebeb; }
+    .btn-add { background: #e8f5e9; border-color: #a5d6a7; color: #2e7d32; }
+    .btn-delete { background: #fce4ec; border-color: #ef9a9a; color: #c62828; padding: 3px 10px; }
+    .btn-validate { background: #1565c0; color: #fff; border-color: #0d47a1; padding: 10px 28px; font-size: 1rem; margin-top: 20px; }
+    .btn-validate:hover { background: #0d47a1; }
+    #output { margin-top: 28px; }
+    .msg-neutral { color: #555; font-style: italic; }
+    .msg-valid { color: #2e7d32; font-weight: bold; padding: 10px; background: #e8f5e9; border-radius: 4px; border: 1px solid #a5d6a7; }
+    .error-list { list-style: none; padding: 0; margin: 0 0 16px 0; }
+    .error-list li { padding: 7px 12px; margin-bottom: 5px; border-radius: 4px; font-size: 0.9rem; }
+    .error-item { background: #fce4ec; border: 1px solid #ef9a9a; color: #c62828; }
+    .warning-item { background: #fff8e1; border: 1px solid #ffe082; color: #e65100; }
+    .procurement { margin-top: 20px; }
+    .procurement h3 { font-size: 1rem; margin-bottom: 8px; }
+    .procurement table { max-width: 600px; }
+    .note { color: #888; font-style: italic; font-size: 0.85rem; }
+    .btn-io { background: #e3f2fd; border-color: #90caf9; color: #1565c0; }
+    .btn-io:hover { background: #bbdefb; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 24px; }
+    .swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+    .swatch.selected { border-color: #333; outline: 3px solid #333; outline-offset: 1px; }
+    .swatches { display: flex; gap: 4px; align-items: center; }
+    #diagram { margin-top: 28px; margin-left: calc(-95.0vw/2.0 + (95.0%/2.0)); width: 95vw; padding: 12px 20px; box-sizing: border-box; overflow-x: auto; border: 2px solid #ccc; border-radius: 6px; background: #fafafa; }
+    .btn-toggle { background: #fff3e0; border-color: #ffcc02; color: #e65100; margin-bottom: 8px; }
+    .btn-toggle:hover { background: #ffe0b2; }
+    .diagram-node { cursor: grab; }
+    .diagram-node:active { cursor: grabbing; }
+    .diagram-node.selected > rect { stroke: #1565c0; stroke-width: 2.5; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; }
+    .modal { background: #fff; border-radius: 8px; padding: 24px; max-width: 680px; width: 90%; max-height: 80vh; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+    .modal h3 { margin: 0; font-size: 1.05rem; }
+    .modal .modal-sub { margin: 0; color: #666; font-size: 0.85rem; }
+    .modal textarea { flex: 1; min-height: 340px; font-family: monospace; font-size: 0.82rem; border: 1px solid #ccc; border-radius: 4px; padding: 8px; resize: vertical; }
+    .modal-footer { display: flex; gap: 8px; justify-content: flex-end; }
+    .btn-nav { background: #f3e5f5; border-color: #ce93d8; color: #6a1b9a; }
+    .btn-nav:hover { background: #e1bee7; }
+    .btn-clear { background: none; border: none; color: #aaa; font-size: 0.78rem; cursor: pointer; padding: 4px 8px; text-decoration: underline; }
+    .btn-clear:hover { color: #c62828; background: none; }
+  </style>
+</head>
+<body>
+  <h1>Media Device Planner</h1>
+
+  <div class="toolbar">
+    <button class="btn-io" onclick="exportPlan()">⬇ Export JSON</button>
+    <button class="btn-io" onclick="document.getElementById('import-input').click()">⬆ Import JSON</button>
+    <input type="file" id="import-input" accept=".json" style="display:none" onchange="importPlan(event)">
+    <button class="btn-nav" onclick="location.href='visualizer.html'">View Diagram →</button>
+    <button class="btn-clear" onclick="clearSavedData()">Clear saved data</button>
+  </div>
+
+  <h2>Devices</h2>
+  <table id="devices-table">
+    <thead>
+      <tr id="devices-thead-row">
+        <th class="sortable" onclick="sortDevices('name')">Name</th>
+        <th class="sortable" onclick="sortDevices('type')">Type</th>
+        <th>HDMI In</th>
+        <th>HDMI Out</th>
+        <th>DP In</th>
+        <th>DP Out</th>
+        <th class="sortable" onclick="sortDevices('area')">Area</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="devices-body"></tbody>
+  </table>
+  <button class="btn-add" onclick="addDevice()">+ Add Device</button>
+
+  <h2>Areas</h2>
+  <table id="areas-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Colour</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="areas-body"></tbody>
+  </table>
+  <button class="btn-add" onclick="addArea()">+ Add Area</button>
+
+  <h2>Connections</h2>
+  <table id="connections-table">
+    <thead>
+      <tr>
+        <th>From Device</th>
+        <th>From Type</th>
+        <th>From Port #</th>
+        <th>To Device</th>
+        <th>To Type</th>
+        <th>To Port #</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="connections-body"></tbody>
+  </table>
+  <button class="btn-add" onclick="addConnection()">+ Add Connection</button>
+
+  <div>
+    <button class="btn-validate" onclick="validateAndGenerate()">Validate &amp; Generate</button>
+  </div>
+
+  <div id="output"></div>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────
+    let devices = [];      // { id, name, type, hdmiIn, hdmiOut, dpIn, dpOut, areaId }
+    let connections = [];  // { id, fromDeviceId, fromPortType, fromPortNum, toDeviceId, toPortType, toPortNum }
+    let areas = [];        // { id, name, color }  — color is a hex string e.g. "#e53935"
+    let deviceCounter = 0; // globally incrementing, never recycled
+    let connectionCounter = 0;
+    let areaCounter = 0;
+    let diagramSpanAreas = true; // toggle: true = span columns, false = within column
+    let nodePosOverrides = {};  // deviceId → { x, y } — absolute SVG coords of dragged nodes
+    let dragState = null;       // null when idle; active drag info during drag
+    let nodePos_last = {};      // snapshot of nodePos from last renderDiagram — used by drag handlers
+    let selectedNodes = new Set(); // set of selected device IDs
+    let deviceSort = { field: null, dir: 1 }; // field: 'name'|'type'|'area'|null; dir: 1=asc, -1=desc
+
+    // ── Persistence ────────────────────────────────────────────
+    // Note: nodePosOverrides (dragged diagram node positions) is intentionally
+    // not persisted — diagram layout is session-only.
+    function saveState() {
+      localStorage.setItem('homemediaplan', JSON.stringify({
+        devices, connections, areas, deviceCounter, connectionCounter, areaCounter
+      }));
+    }
+
+    function clearSavedData() {
+      if (!confirm('Clear all saved data? This cannot be undone.')) return;
+      localStorage.removeItem('homemediaplan');
+      devices = [];
+      connections = [];
+      areas = [];
+      deviceCounter = 0;
+      connectionCounter = 0;
+      areaCounter = 0;
+      nodePosOverrides = {};
+      nodePos_last = {};
+      selectedNodes = new Set();
+      deviceSort = { field: null, dir: 1 };
+      renderAreas();
+      renderDevices();
+      renderConnections();
+      document.getElementById('output').innerHTML = '';
+    }
+
+    const DEVICE_TYPES = ['Console', 'Desktop', 'Laptop', 'Monitor', 'Display Switch', 'KVM Switch', 'Extension'];
+    const SWITCH_TYPES = ['Display Switch', 'KVM Switch']; // Extension excluded — already installed, not procured
+    const PORT_TYPES = ['HDMI', 'DP'];
+    const AREA_COLOURS = ['#e53935','#d81b60','#1e88e5','#00897b','#43a047','#fb8c00','#6d4c41','#546e7a'];
+
+  // ── Diagram layout constants ────────────────────────────────
+  const NODE_WIDTH = 160;
+  const COL_GAP    = 180;  // gap between right edge of one column and left edge of next
+  const SVG_PAD_H  = 40;   // left/right SVG padding
+  const SVG_PAD_V  = 40;   // top/bottom SVG padding
+  const NODE_V_GAP = 20;   // vertical gap between nodes in same column
+
+  const COL_ASSIGNMENT = {
+    'Console': 0, 'Desktop': 0, 'Laptop': 0,
+    'Display Switch': 1, 'KVM Switch': 1, 'Extension': 1,
+    'Monitor': 2
+  };
+
+    function nextDeviceId() { return ++deviceCounter; }
+
+    function getDeviceById(id) { return devices.find(d => d.id === id); }
+    function getDeviceLabel(id) {
+      const d = getDeviceById(id);
+      return d ? (d.name.trim() || `Device ${id}`) : '(deleted)';
+    }
+
+    // ── Export / Import ────────────────────────────────────────
+    function exportPlan() {
+      const data = JSON.stringify({ devices, connections, areas, areaCounter, deviceCounter, connectionCounter }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'media-plan.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importPlan(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        let parsed;
+        try {
+          parsed = JSON.parse(e.target.result);
+        } catch {
+          alert('Invalid file — could not import.');
+          return;
+        }
+        if (!Array.isArray(parsed.devices) || !Array.isArray(parsed.connections)) {
+          alert('Invalid plan file.');
+          return;
+        }
+        devices           = parsed.devices;
+        connections       = parsed.connections;
+        areas             = Array.isArray(parsed.areas) ? parsed.areas : [];
+        areas.forEach(a => { if (!/^#[0-9a-fA-F]{6}$/.test(a.color)) a.color = AREA_COLOURS[0]; });
+        deviceCounter     = typeof parsed.deviceCounter     === 'number' ? parsed.deviceCounter     : Math.max(0, ...parsed.devices.map(d => typeof d.id === 'number' ? d.id : 0));
+        connectionCounter = typeof parsed.connectionCounter === 'number' ? parsed.connectionCounter : Math.max(0, ...parsed.connections.map(c => typeof c.id === 'number' ? c.id : 0));
+        areaCounter       = typeof parsed.areaCounter       === 'number' ? parsed.areaCounter       : (areas.length ? Math.max(...areas.map(a => typeof a.id === 'number' ? a.id : 0)) : 0);
+        // Normalise areaId: undefined (old files) → null
+        devices.forEach(d => { if (d.areaId == null) d.areaId = null; });
+        renderAreas();
+        renderDevices();
+        renderConnections();
+        document.getElementById('output').innerHTML = '';
+        saveState();
+        // Reset file input so the same file can be re-imported if needed
+        event.target.value = '';
+      };
+      reader.onerror = function() {
+        alert('Could not read the file.');
+      };
+      reader.readAsText(file);
+    }
+
+    // ── Render: Devices ────────────────────────────────────────
+    function escHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function hexToRgb(hex) {
+      const r = parseInt(hex.slice(1,3), 16);
+      const g = parseInt(hex.slice(3,5), 16);
+      const b = parseInt(hex.slice(5,7), 16);
+      return { r, g, b };
+    }
+
+    // Returns an inline style string tinting an element with the device's area colour.
+    function areaStyle(deviceId) {
+      if (deviceId == null) return '';
+      const dev = devices.find(d => d.id === deviceId);
+      if (!dev || dev.areaId == null) return '';
+      const area = areas.find(a => a.id === dev.areaId);
+      if (!area) return '';
+      const { r, g, b } = hexToRgb(area.color);
+      return `background:rgba(${r},${g},${b},0.18);border-color:${area.color};`;
+    }
+
+    // Called from inline onchange on device dropdowns in the Connections table.
+    function setSelectAreaColor(el, deviceId) {
+      if (deviceId == null) { el.style.background = ''; el.style.borderColor = ''; return; }
+      const dev = devices.find(d => d.id === +deviceId);
+      if (!dev || dev.areaId == null) { el.style.background = ''; el.style.borderColor = ''; return; }
+      const area = areas.find(a => a.id === dev.areaId);
+      if (!area) { el.style.background = ''; el.style.borderColor = ''; return; }
+      const { r, g, b } = hexToRgb(area.color);
+      el.style.background = `rgba(${r},${g},${b},0.18)`;
+      el.style.borderColor = area.color;
+    }
+
+    function areaDropdown(deviceId, selectedAreaId) {
+      const options = [`<option value="">-- none --</option>`];
+      areas.forEach(a => {
+        const label = a.name.trim() || `Area ${a.id}`;
+        options.push(`<option value="${a.id}" ${a.id === selectedAreaId ? 'selected' : ''}>${escHtml(label)}</option>`);
+      });
+      return `<select onchange="updateDevice(${deviceId}, 'areaId', this.value === '' ? null : +this.value)">${options.join('')}</select>`;
+    }
+
+    function sortDevices(field) {
+      if (deviceSort.field === field) {
+        deviceSort.dir *= -1;
+      } else {
+        deviceSort.field = field;
+        deviceSort.dir = 1;
+      }
+      renderDevices();
+    }
+
+    function renderDevices() {
+      // Update header sort indicators
+      const row = document.getElementById('devices-thead-row');
+      if (row) {
+        row.querySelectorAll('th.sortable').forEach(th => {
+          const f = th.getAttribute('onclick').match(/'(\w+)'/)[1];
+          th.classList.toggle('sort-active', f === deviceSort.field);
+          const base = { name: 'Name', type: 'Type', area: 'Area' }[f];
+          th.textContent = base + (f === deviceSort.field ? (deviceSort.dir === 1 ? ' ▲' : ' ▼') : '');
+        });
+      }
+
+      // Sort a shallow copy; devices array order is preserved for IDs/connections
+      let sorted = [...devices];
+      if (deviceSort.field) {
+        sorted.sort((a, b) => {
+          let va, vb;
+          if (deviceSort.field === 'name') {
+            va = (a.name.trim() || `Device ${a.id}`).toLowerCase();
+            vb = (b.name.trim() || `Device ${b.id}`).toLowerCase();
+          } else if (deviceSort.field === 'type') {
+            va = a.type.toLowerCase();
+            vb = b.type.toLowerCase();
+          } else if (deviceSort.field === 'area') {
+            const areaName = id => { const ar = areas.find(x => x.id === id); return ar ? ar.name.toLowerCase() : ''; };
+            va = a.areaId != null ? areaName(a.areaId) : '\uffff'; // unassigned sorts last
+            vb = b.areaId != null ? areaName(b.areaId) : '\uffff';
+          }
+          if (va < vb) return -1 * deviceSort.dir;
+          if (va > vb) return  1 * deviceSort.dir;
+          return 0;
+        });
+      }
+
+      const tbody = document.getElementById('devices-body');
+      tbody.innerHTML = '';
+      sorted.forEach(dev => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input type="text" value="${escHtml(dev.name)}" placeholder="Device ${dev.id}"
+              style="${areaStyle(dev.id)}"
+              onblur="updateDevice(${dev.id}, 'name', this.value); renderConnections()"></td>
+          <td><select onchange="updateDevice(${dev.id}, 'type', this.value)">
+            ${DEVICE_TYPES.map(t => `<option value="${t}" ${dev.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+          </select></td>
+          <td><input type="number" min="0" value="${dev.hdmiIn}"
+              onchange="updateDevice(${dev.id}, 'hdmiIn', +this.value)"></td>
+          <td><input type="number" min="0" value="${dev.hdmiOut}"
+              onchange="updateDevice(${dev.id}, 'hdmiOut', +this.value)"></td>
+          <td><input type="number" min="0" value="${dev.dpIn}"
+              onchange="updateDevice(${dev.id}, 'dpIn', +this.value)"></td>
+          <td><input type="number" min="0" value="${dev.dpOut}"
+              onchange="updateDevice(${dev.id}, 'dpOut', +this.value)"></td>
+          <td>${areaDropdown(dev.id, dev.areaId)}</td>
+          <td><button class="btn-delete" onclick="deleteDevice(${dev.id})">✕</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function addDevice() {
+      const id = nextDeviceId();
+      devices.push({ id, name: '', type: DEVICE_TYPES[0], hdmiIn: 0, hdmiOut: 0, dpIn: 0, dpOut: 0, areaId: null });
+      renderDevices();
+      renderConnections();
+      saveState();
+    }
+
+    function updateDevice(id, field, value) {
+      const dev = getDeviceById(id);
+      if (!dev) return;
+      if (['hdmiIn','hdmiOut','dpIn','dpOut'].includes(field)) {
+        dev[field] = Math.max(0, Math.floor(Number(value) || 0));
+      } else {
+        dev[field] = value;
+      }
+      saveState();
+    }
+
+    function deleteDevice(id) {
+      devices = devices.filter(d => d.id !== id);
+      connections.forEach(c => {
+        if (c.fromDeviceId === id) c.fromDeviceId = null;
+        if (c.toDeviceId   === id) c.toDeviceId   = null;
+      });
+      renderDevices();
+      renderConnections();
+      saveState();
+    }
+
+    // ── Areas ──────────────────────────────────────────────────────
+    function renderAreas() {
+      const tbody = document.getElementById('areas-body');
+      tbody.innerHTML = '';
+      areas.forEach(area => {
+        const tr = document.createElement('tr');
+        const swatches = AREA_COLOURS.map(hex =>
+          `<button class="swatch${area.color === hex ? ' selected' : ''}"
+              style="background:${hex}"
+              onclick="updateArea(${area.id}, 'color', '${hex}'); renderAreas(); renderDevices();"
+              title="${hex}"></button>`
+        ).join('');
+        tr.innerHTML = `
+          <td><input type="text" value="${escHtml(area.name)}" placeholder="Area name"
+              onblur="updateArea(${area.id}, 'name', this.value); renderDevices();"></td>
+          <td><div class="swatches">${swatches}</div></td>
+          <td><button class="btn-delete" onclick="deleteArea(${area.id})">✕</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function addArea() {
+      const usedColors = new Set(areas.map(a => a.color));
+      const color = AREA_COLOURS.find(c => !usedColors.has(c)) || AREA_COLOURS[0];
+      areas.push({ id: ++areaCounter, name: '', color });
+      renderAreas();
+      renderDevices();
+      saveState();
+    }
+
+    function updateArea(id, field, value) {
+      const area = areas.find(a => a.id === id);
+      if (area) { area[field] = value; saveState(); }
+    }
+
+    function deleteArea(id) {
+      areas = areas.filter(a => a.id !== id);
+      devices.forEach(d => { if (d.areaId === id) d.areaId = null; });
+      renderAreas();
+      renderDevices();
+      saveState();
+    }
+
+    // ── Render: Connections ────────────────────────────────────
+    function renderConnections() {
+      const tbody = document.getElementById('connections-body');
+      tbody.innerHTML = '';
+      connections.forEach(conn => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${deviceDropdown('fromDeviceId', conn.id, conn.fromDeviceId)}</td>
+          <td><select onchange="updateConnection(${conn.id}, 'fromPortType', this.value)">
+            ${PORT_TYPES.map(p => `<option value="${p}" ${conn.fromPortType === p ? 'selected' : ''}>${p}</option>`).join('')}
+          </select></td>
+          <td><input type="number" min="1" value="${conn.fromPortNum}"
+              onchange="updateConnection(${conn.id}, 'fromPortNum', +this.value)"></td>
+          <td>${deviceDropdown('toDeviceId', conn.id, conn.toDeviceId)}</td>
+          <td><select onchange="updateConnection(${conn.id}, 'toPortType', this.value)">
+            ${PORT_TYPES.map(p => `<option value="${p}" ${conn.toPortType === p ? 'selected' : ''}>${p}</option>`).join('')}
+          </select></td>
+          <td><input type="number" min="1" value="${conn.toPortNum}"
+              onchange="updateConnection(${conn.id}, 'toPortNum', +this.value)"></td>
+          <td><button class="btn-delete" onclick="deleteConnection(${conn.id})">✕</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function deviceDropdown(field, connId, selectedDeviceId) {
+      const options = [`<option value="">-- select device --</option>`];
+      devices.forEach(d => {
+        const area = areas.find(a => a.id === d.areaId);
+        const prefix = area ? `[${(area.name.trim() || '?').charAt(0)}] ` : '';
+        const label = prefix + (d.name.trim() || `Device ${d.id}`);
+        options.push(`<option value="${d.id}" ${d.id === selectedDeviceId ? 'selected' : ''}>${escHtml(label)}</option>`);
+      });
+      const style = areaStyle(selectedDeviceId);
+      return `<select style="${style}" onchange="updateConnection(${connId}, '${field}', this.value === '' ? null : +this.value); setSelectAreaColor(this, this.value === '' ? null : +this.value)">${options.join('')}</select>`;
+    }
+
+    function addConnection() {
+      const id = ++connectionCounter;
+      connections.push({ id, fromDeviceId: null, fromPortType: 'HDMI', fromPortNum: 1, toDeviceId: null, toPortType: 'HDMI', toPortNum: 1 });
+      renderConnections();
+      saveState();
+    }
+
+    function updateConnection(id, field, value) {
+      const conn = connections.find(c => c.id === id);
+      if (!conn) return;
+      if (['fromPortNum', 'toPortNum'].includes(field)) {
+        conn[field] = Math.max(1, Math.floor(Number(value) || 1));
+      } else {
+        conn[field] = value;
+      }
+      saveState();
+    }
+
+    function deleteConnection(id) {
+      connections = connections.filter(c => c.id !== id);
+      renderConnections();
+      saveState();
+    }
+
+    // ── Validation helpers ─────────────────────────────────────
+    function completeConnections() {
+      return connections.filter(c => c.fromDeviceId != null && c.toDeviceId != null);
+    }
+
+    // direction: 'out' | 'in'
+    function getPortCount(device, portType, direction) {
+      if (portType === 'HDMI') return direction === 'out' ? device.hdmiOut : device.hdmiIn;
+      if (portType === 'DP')   return direction === 'out' ? device.dpOut  : device.dpIn;
+      return 0;
+    }
+
+    // ── Validation ─────────────────────────────────────────────
+    function validate() {
+      const complete = completeConnections();
+      const results = []; // { type: 'error'|'warning', message: string }
+
+      // Rule 1 — Duplicate connection
+      const connKeys = complete.map(c =>
+        `${c.fromDeviceId}|${c.fromPortType}|${c.fromPortNum}|${c.toDeviceId}|${c.toPortType}|${c.toPortNum}`
+      );
+      const seen = {};
+      connKeys.forEach((key, i) => { seen[key] = (seen[key] || []); seen[key].push(i); });
+      // Emit one error per duplicate occurrence so all affected rows are flagged.
+      Object.values(seen).filter(idxs => idxs.length > 1).forEach(idxs => {
+        idxs.forEach(i => {
+          const c = complete[i];
+          results.push({ type: 'error', message:
+            `Duplicate connection: ${getDeviceLabel(c.fromDeviceId)} ${c.fromPortType} Out ${c.fromPortNum} → ${getDeviceLabel(c.toDeviceId)} ${c.toPortType} In ${c.toPortNum} is defined more than once.`
+          });
+        });
+      });
+
+      // Rule 2 — Port capacity exceeded
+      // Note: if declared count is 0, `n > declared` (e.g. 1 > 0) is true — this correctly
+      // triggers the error for any connection to a zero-declared device/direction.
+      const counts = {}; // key: `${deviceId}|${portType}|${direction}`
+      complete.forEach(c => {
+        const outKey = `${c.fromDeviceId}|${c.fromPortType}|out`;
+        const inKey  = `${c.toDeviceId}|${c.toPortType}|in`;
+        counts[outKey] = (counts[outKey] || 0) + 1;
+        counts[inKey]  = (counts[inKey]  || 0) + 1;
+      });
+      Object.entries(counts).forEach(([key, n]) => {
+        const [devId, portType, dir] = key.split('|');
+        const dev = getDeviceById(+devId);
+        if (!dev) return;
+        const declared = getPortCount(dev, portType, dir);
+        if (n > declared) {
+          results.push({ type: 'error', message:
+            `${getDeviceLabel(+devId)} ${portType} ${dir === 'out' ? 'Output' : 'Input'}: ${n} connection(s) assigned but only ${declared} declared.`
+          });
+        }
+      });
+
+      // Rule 3 — Duplicate port assignment
+      const portUsage = {}; // key: `${deviceId}|${portType}|${direction}|${portNum}`
+      complete.forEach(c => {
+        const outKey = `${c.fromDeviceId}|${c.fromPortType}|out|${c.fromPortNum}`;
+        const inKey  = `${c.toDeviceId}|${c.toPortType}|in|${c.toPortNum}`;
+        portUsage[outKey] = (portUsage[outKey] || 0) + 1;
+        portUsage[inKey]  = (portUsage[inKey]  || 0) + 1;
+      });
+      Object.entries(portUsage).filter(([,n]) => n > 1).forEach(([key]) => {
+        const [devId, portType, dir, portNum] = key.split('|');
+        results.push({ type: 'error', message:
+          `${getDeviceLabel(+devId)} ${portType} ${dir === 'out' ? 'Out' : 'In'} port ${portNum} is used by more than one connection.`
+        });
+      });
+
+      // Rule 4 — Port number out of range
+      complete.forEach(c => {
+        const fromDev = getDeviceById(c.fromDeviceId);
+        const toDev   = getDeviceById(c.toDeviceId);
+        if (fromDev) {
+          const declared = getPortCount(fromDev, c.fromPortType, 'out');
+          if (c.fromPortNum > declared) {
+            results.push({ type: 'error', message:
+              `${getDeviceLabel(c.fromDeviceId)} ${c.fromPortType} Out port ${c.fromPortNum} is out of range (declared: ${declared}).`
+            });
+          }
+        }
+        if (toDev) {
+          const declared = getPortCount(toDev, c.toPortType, 'in');
+          if (c.toPortNum > declared) {
+            results.push({ type: 'error', message:
+              `${getDeviceLabel(c.toDeviceId)} ${c.toPortType} In port ${c.toPortNum} is out of range (declared: ${declared}).`
+            });
+          }
+        }
+      });
+
+      // Rule 5 — Mismatched port types (warning — adapter cables are valid)
+      complete.forEach(c => {
+        if (c.fromPortType !== c.toPortType) {
+          results.push({ type: 'warning', message:
+            `Cable type mismatch on ${getDeviceLabel(c.fromDeviceId)} → ${getDeviceLabel(c.toDeviceId)}: ${c.fromPortType} to ${c.toPortType} connection requires an adapter.`
+          });
+        }
+      });
+
+      // Rule 6 — Self-loop (warning, not error)
+      complete.forEach(c => {
+        if (c.fromDeviceId === c.toDeviceId) {
+          results.push({ type: 'warning', message:
+            `Warning: ${getDeviceLabel(c.fromDeviceId)} is connected to itself — is this intentional?`
+          });
+        }
+      });
+
+      return results;
+    }
+
+    // ── Procurement ─────────────────────────────────────────────
+    function buildProcurement() {
+      const complete = completeConnections();
+
+      const switches = devices
+        .filter(d => SWITCH_TYPES.includes(d.type))
+        .map(dev => {
+          const hdmiIn  = complete.filter(c => c.toDeviceId   === dev.id && c.toPortType   === 'HDMI').length;
+          const hdmiOut = complete.filter(c => c.fromDeviceId === dev.id && c.fromPortType === 'HDMI').length;
+          const dpIn    = complete.filter(c => c.toDeviceId   === dev.id && c.toPortType   === 'DP').length;
+          const dpOut   = complete.filter(c => c.fromDeviceId === dev.id && c.fromPortType === 'DP').length;
+          return { name: dev.name.trim() || `Device ${dev.id}`, type: dev.type, hdmiIn, hdmiOut, dpIn, dpOut, hasConnections: (hdmiIn + hdmiOut + dpIn + dpOut) > 0 };
+        });
+
+      const hdmiCables = complete.filter(c => c.fromPortType === 'HDMI' && c.toPortType === 'HDMI').length;
+      const dpCables   = complete.filter(c => c.fromPortType === 'DP'   && c.toPortType === 'DP').length;
+
+      // Group adapter cables by unordered port-type pair, e.g. "HDMI ↔ DP"
+      const adapterGroups = {};
+      complete.filter(c => c.fromPortType !== c.toPortType).forEach(c => {
+        const key = [c.fromPortType, c.toPortType].sort().join(' ↔ ');
+        adapterGroups[key] = (adapterGroups[key] || 0) + 1;
+      });
+
+      return { switches, hdmiCables, dpCables, adapterGroups };
+    }
+
+    // ── Shopping Prompt ─────────────────────────────────────────
+    function generateShoppingPrompt() {
+      const p = buildProcurement();
+      const lines = [];
+
+      lines.push(`I'm setting up a home AV/media system and need to purchase the following equipment. All cables should be HDMI 2.1 or DisplayPort 2.1 where applicable. Please suggest specific products for each item and include approximate prices and compatibility notes.`);
+      lines.push('');
+
+      lines.push('## Cables Needed');
+      lines.push('');
+      if (p.hdmiCables > 0) lines.push(`- ${p.hdmiCables}× HDMI cables (HDMI 2.1 preferred)`);
+      if (p.dpCables   > 0) lines.push(`- ${p.dpCables}× DisplayPort cables (DP 2.1 preferred)`);
+      Object.entries(p.adapterGroups).forEach(([pair, count]) => {
+        lines.push(`- ${count}× ${pair} adapter cable (minimum DP 1.4, higher spec preferred)`);
+      });
+      lines.push('');
+
+      if (p.switches.length > 0) {
+        lines.push('## Switches & Splitters Needed');
+        lines.push('');
+        lines.push('"X-in Y-out" = X inputs, Y outputs.');
+
+        p.switches.forEach(sw => {
+          const totalIn  = sw.hdmiIn  + sw.dpIn;
+          const totalOut = sw.hdmiOut + sw.dpOut;
+
+          const portParts = [];
+          if (sw.hdmiIn > 0 || sw.hdmiOut > 0) portParts.push(`HDMI ${sw.hdmiIn}-in ${sw.hdmiOut}-out`);
+          if (sw.dpIn   > 0 || sw.dpOut   > 0) portParts.push(`DP ${sw.dpIn}-in ${sw.dpOut}-out`);
+          const portStr = portParts.join(', ');
+
+          let role = sw.type === 'KVM Switch' ? 'KVM Switch'
+                   : 'HDMI Switch';
+
+          lines.push(`- **${sw.name}** — ${portStr} — ${role}`);
+        });
+        lines.push('');
+      }
+
+      lines.push('For each item, give me 2–3 options covering:');
+      lines.push('- Best quality');
+      lines.push('- Best value');
+      lines.push('- Best reviews');
+      lines.push('');
+      lines.push('For each option include:');
+      lines.push('- Product name and model number');
+      lines.push('- Approximate price (USD or SGD)');
+      lines.push('- Why it fits that category (quality / value / reviews)');
+      lines.push('- Compatibility notes (e.g. HDMI 2.0 vs 2.1, 4K/HDR support, bandwidth limitations)');
+      lines.push('');
+      lines.push('I will handle sourcing and freight forwarding myself, so do not limit suggestions by region.');
+
+      document.getElementById('shopping-modal-text').value = lines.join('\n');
+      document.getElementById('shopping-modal').style.display = 'flex';
+    }
+
+    function closeShoppingModal() {
+      document.getElementById('shopping-modal').style.display = 'none';
+    }
+
+    function copyShoppingPrompt() {
+      const ta  = document.getElementById('shopping-modal-text');
+      const btn = document.getElementById('copy-prompt-btn');
+      navigator.clipboard.writeText(ta.value).then(() => {
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => { btn.textContent = 'Copy to clipboard'; }, 2000);
+      }).catch(() => { ta.select(); document.execCommand('copy'); });
+    }
+
+    // ── Render: Output ─────────────────────────────────────────
+    function renderOutput(results, procurement) {
+      const out = document.getElementById('output');
+
+      // Empty state: show neutral message only if NO devices AND no complete connections.
+      // If devices exist but no connections, fall through and show "All connections valid"
+      // (since there are no errors). This is correct per spec.
+      const hasDevices = devices.length > 0;
+      const hasComplete = completeConnections().length > 0;
+      if (!hasDevices && !hasComplete) {
+        out.innerHTML = `<p class="msg-neutral">Nothing to validate — add devices and connections first.</p>`;
+        return;
+      }
+
+      let html = '';
+
+      const errors   = results.filter(r => r.type === 'error');
+      const warnings = results.filter(r => r.type === 'warning');
+
+      if (errors.length === 0) {
+        html += `<div class="msg-valid">✓ All connections valid</div>`;
+      }
+      if (errors.length > 0 || warnings.length > 0) {
+        html += `<ul class="error-list">`;
+        errors.forEach(e =>   { html += `<li class="error-item">✕ ${escHtml(e.message)}</li>`; });
+        warnings.forEach(w => { html += `<li class="warning-item">⚠ ${escHtml(w.message)}</li>`; });
+        html += `</ul>`;
+      }
+
+      html += `<div class="procurement">`;
+
+      if (procurement.switches.length > 0) {
+        html += `<h3>Switches Needed</h3>`;
+        html += `<table><thead><tr><th>Switch</th><th>HDMI In</th><th>HDMI Out</th><th>DP In</th><th>DP Out</th></tr></thead><tbody>`;
+        procurement.switches.forEach(sw => {
+          const totalIn  = sw.hdmiIn  + sw.dpIn;
+          const totalOut = sw.hdmiOut + sw.dpOut;
+          const typeLabel = sw.type === 'Display Switch'
+            ? `${totalIn}-${totalOut} Display Switch`
+            : sw.type;
+          const displayName = `${escHtml(sw.name)} <span class="note">(${escHtml(typeLabel)})</span>`;
+          if (!sw.hasConnections) {
+            html += `<tr><td>${displayName}</td><td colspan="4" class="note">No connections assigned yet.</td></tr>`;
+          } else {
+            html += `<tr><td>${displayName}</td><td>${sw.hdmiIn}</td><td>${sw.hdmiOut}</td><td>${sw.dpIn}</td><td>${sw.dpOut}</td></tr>`;
+          }
+        });
+        html += `</tbody></table>`;
+      }
+
+      html += `<h3>Cables Needed</h3>`;
+      html += `<table><thead><tr><th>Type</th><th>Count</th></tr></thead><tbody>`;
+      html += `<tr><td>HDMI cables</td><td>${procurement.hdmiCables}</td></tr>`;
+      html += `<tr><td>DP cables</td><td>${procurement.dpCables}</td></tr>`;
+      Object.entries(procurement.adapterGroups).forEach(([pair, count]) => {
+        html += `<tr><td>${count}× ${escHtml(pair)} adapter</td><td>${count}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+
+      html += `<button class="btn-io" onclick="generateShoppingPrompt()" style="margin-top:16px">🛒 Generate shopping list prompt</button>`;
+      html += `</div>`;
+      out.innerHTML = html;
+      renderDiagram(out, { reset: true });
+    }
+
+    // ── Diagram ─────────────────────────────────────────────────
+    function nodeHeight(dev) {
+      const portLines = [dev.hdmiOut, dev.hdmiIn, dev.dpOut, dev.dpIn].filter(v => v > 0).length;
+      return Math.max(70, 52 + portLines * 16);
+    }
+
+    function computeLayout() {
+      // Bucket devices into columns
+      const cols = [[], [], []];
+      devices.forEach(dev => {
+        const ci = COL_ASSIGNMENT[dev.type] ?? 0;
+        cols[ci].push(dev);
+      });
+
+      const nonEmptyCols = [0, 1, 2].filter(ci => cols[ci].length > 0);
+
+      // Height of each column in pixels
+      function colHeight(ci) {
+        const devs = cols[ci];
+        return devs.reduce((sum, d) => sum + nodeHeight(d), 0) + Math.max(0, devs.length - 1) * NODE_V_GAP;
+      }
+      const maxColHeight = Math.max(...nonEmptyCols.map(colHeight));
+
+      // X coordinate of left edge of each non-empty column
+      const colX = {};
+      nonEmptyCols.forEach((ci, i) => {
+        colX[ci] = SVG_PAD_H + i * (NODE_WIDTH + COL_GAP);
+      });
+
+      // Y coordinate where the first node in each column starts (vertically centred)
+      const colStartY = {};
+      nonEmptyCols.forEach(ci => {
+        colStartY[ci] = SVG_PAD_V + (maxColHeight - colHeight(ci)) / 2;
+      });
+
+      // Per-node position map
+      const nodePos = {}; // deviceId → { x, y, w, h, colIndex }
+      nonEmptyCols.forEach(ci => {
+        let y = colStartY[ci];
+        cols[ci].forEach(dev => {
+          const h = nodeHeight(dev);
+          nodePos[dev.id] = { x: colX[ci], y, w: NODE_WIDTH, h, colIndex: ci };
+          y += h + NODE_V_GAP;
+        });
+      });
+
+      const nCols = nonEmptyCols.length;
+      const svgWidth  = 2 * SVG_PAD_H + nCols * NODE_WIDTH + (nCols - 1) * COL_GAP;
+      const svgHeight = 2 * SVG_PAD_V + maxColHeight;
+
+      // Apply drag overrides (x, y only — colIndex preserved for area box grouping)
+      Object.entries(nodePosOverrides).forEach(([id, pos]) => {
+        const numId = +id;
+        if (nodePos[numId]) {
+          nodePos[numId].x = pos.x;
+          nodePos[numId].y = pos.y;
+        }
+      });
+
+      return { nodePos, svgWidth, svgHeight };
+    }
+
+  function edgeAnchors(src, tgt) {
+    const half = NODE_WIDTH / 2;
+    const srcCx = src.x + half;
+    const tgtCx = tgt.x + half;
+    const dx = tgtCx - srcCx;
+
+    // Threshold of 20px: nodes within NODE_WIDTH/8 horizontally are treated as
+    // "vertically aligned" and get a bezier arc rather than a horizontal straight line
+    if (dx > 20) {
+      return {
+        x1: src.x + NODE_WIDTH, y1: src.y + src.h / 2,
+        x2: tgt.x,              y2: tgt.y + tgt.h / 2,
+        sameCol: false
+      };
+    } else if (dx < -20) {
+      return {
+        x1: src.x,              y1: src.y + src.h / 2,
+        x2: tgt.x + NODE_WIDTH, y2: tgt.y + tgt.h / 2,
+        sameCol: false
+      };
+    } else {
+      return {
+        x1: src.x + NODE_WIDTH, y1: src.y + src.h / 2,
+        x2: tgt.x + NODE_WIDTH, y2: tgt.y + tgt.h / 2,
+        sameCol: true
+      };
+    }
+  }
+
+  function renderNodesSvg(nodePos) {
+    const CAT_COLOURS = {
+      Source:    { fill: '#e3f2fd', stroke: '#90caf9' },
+      Switch:    { fill: '#f3e5f5', stroke: '#ce93d8' },
+      Display:   { fill: '#e8f5e9', stroke: '#a5d6a7' },
+      Extension: { fill: '#fff8e1', stroke: '#ffe082' },
+    };
+    function devCategory(dev) {
+      if (['Console','Desktop','Laptop'].includes(dev.type)) return 'Source';
+      if (['Display Switch','KVM Switch'].includes(dev.type)) return 'Switch';
+      if (dev.type === 'Monitor') return 'Display';
+      if (dev.type === 'Extension') return 'Extension';
+      return 'Source';
+    }
+    function trunc(s, n) { s = String(s); return s.length > n ? s.slice(0, n) + '…' : s; }
+
+    let svg = '';
+    devices.forEach(dev => {
+      const pos = nodePos[dev.id];
+      if (!pos) return;
+      const { x, y, w, h } = pos;
+      const { fill, stroke } = CAT_COLOURS[devCategory(dev)];
+      const name = trunc(dev.name.trim() || `Device ${dev.id}`, 18);
+
+      const portParts = [];
+      if (dev.hdmiOut > 0) portParts.push(`HDMI Out: ${dev.hdmiOut}`);
+      if (dev.hdmiIn  > 0) portParts.push(`HDMI In: ${dev.hdmiIn}`);
+      if (dev.dpOut   > 0) portParts.push(`DP Out: ${dev.dpOut}`);
+      if (dev.dpIn    > 0) portParts.push(`DP In: ${dev.dpIn}`);
+
+      svg += `<g class="diagram-node${selectedNodes.has(dev.id) ? ' selected' : ''}" data-id="${dev.id}" transform="translate(${x},${y})">`;
+      svg += `<rect x="0" y="0" width="${w}" height="${h}" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`;
+      svg += `<text x="10" y="22" font-size="13" font-weight="bold" fill="#222">${escHtml(name)}</text>`;
+      svg += `<text x="10" y="38" font-size="11" fill="#666">${escHtml(dev.type)}</text>`;
+      portParts.forEach((p, i) => {
+        svg += `<text x="10" y="${54 + i * 16}" font-size="11" fill="#555">${escHtml(p)}</text>`;
+      });
+      svg += `</g>`;
+    });
+    return svg;
+  }
+
+  function renderEdgesSvg(nodePos) {
+    const complete = completeConnections().filter(c => c.fromDeviceId !== c.toDeviceId);
+    let svg = '';
+
+    function edgeColor(c) {
+      if (c.fromPortType === 'HDMI' && c.toPortType === 'HDMI') return '#1565c0';
+      if (c.fromPortType === 'DP'   && c.toPortType === 'DP')   return '#e65100';
+      return '#f9a825';
+    }
+
+    complete.forEach(c => {
+      const src = nodePos[c.fromDeviceId];
+      const tgt = nodePos[c.toDeviceId];
+      if (!src || !tgt) return;
+
+      const color = edgeColor(c);
+      const { x1, y1, x2, y2, sameCol } = edgeAnchors(src, tgt);
+      let pathD, labelX, labelY;
+      if (!sameCol) {
+        pathD  = `M${x1},${y1} L${x2},${y2}`;
+        labelX = (x1 + x2) / 2;
+        labelY = (y1 + y2) / 2 - 6;
+      } else {
+        pathD  = `M${x1},${y1} C${x1+40},${y1} ${x1+40},${y2} ${x2},${y2}`;
+        labelX = x1 + 48;
+        labelY = (y1 + y2) / 2;
+      }
+
+      svg += `<path data-from="${c.fromDeviceId}" data-to="${c.toDeviceId}" d="${pathD}" stroke="${color}" stroke-width="2" fill="none"/>`;
+
+      const label  = `${c.fromPortType} Out ${c.fromPortNum} \u2192 ${c.toPortType} In ${c.toPortNum}`;
+      const rectW  = label.length * 6.5 + 8;
+      const rectX  = labelX - rectW / 2;
+      svg += `<rect data-label-from="${c.fromDeviceId}" data-label-to="${c.toDeviceId}" x="${rectX}" y="${labelY - 11}" width="${rectW}" height="14" rx="2" fill="white"/>`;
+      svg += `<text data-label-from="${c.fromDeviceId}" data-label-to="${c.toDeviceId}" x="${labelX}" y="${labelY}" font-size="11" fill="#333" text-anchor="middle">${escHtml(label)}</text>`;
+    });
+
+    return svg;
+  }
+
+  function areaBoundingBoxSvg(area, nodes) {
+    if (nodes.length === 0) return '';
+    const minX = Math.min(...nodes.map(n => n.x));
+    const minY = Math.min(...nodes.map(n => n.y));
+    const maxX = Math.max(...nodes.map(n => n.x + n.w));
+    const maxY = Math.max(...nodes.map(n => n.y + n.h));
+
+    const boxX = minX - 12;
+    const boxY = minY - 28;  // 28px top: 12px padding + 16px for label
+    const boxW = maxX - minX + 24;
+    const boxH = maxY - minY + 40;  // 28 top + 12 bottom
+
+    const { r, g, b } = hexToRgb(area.color);
+    const name = area.name.trim() || `Area ${area.id}`;
+
+    return `<rect x="${boxX}" y="${boxY}" width="${boxW}" height="${boxH}" rx="8" ` +
+           `fill="rgba(${r},${g},${b},0.12)" stroke="${area.color}" stroke-width="2" stroke-dasharray="6 3"/>` +
+           `<text x="${boxX + 8}" y="${boxY + 16}" font-size="11" font-weight="bold" fill="${area.color}">${escHtml(name)}</text>`;
+  }
+
+  function renderAreaBoxesSvg(nodePos) {
+    let svg = '';
+    areas.forEach(area => {
+      const areaDevices = devices.filter(d => d.areaId === area.id);
+      if (areaDevices.length === 0) return;
+
+      if (diagramSpanAreas) {
+        // One box spanning all columns
+        const nodes = areaDevices.map(d => nodePos[d.id]).filter(Boolean);
+        if (nodes.length === 0) return;
+        svg += areaBoundingBoxSvg(area, nodes);
+      } else {
+        // One box per column
+        const byCol = {};
+        areaDevices.forEach(d => {
+          const pos = nodePos[d.id];
+          if (!pos) return;
+          if (!byCol[pos.colIndex]) byCol[pos.colIndex] = [];
+          byCol[pos.colIndex].push(pos);
+        });
+        Object.values(byCol).forEach(nodes => {
+          svg += areaBoundingBoxSvg(area, nodes);
+        });
+      }
+    });
+    return svg;
+  }
+
+  function renderDiagram(outputEl, { reset = false } = {}) {
+    dragState = null;
+    if (reset) { nodePosOverrides = {}; selectedNodes.clear(); }
+    if (devices.length === 0) return;
+
+    const existing = outputEl.querySelector('#diagram');
+    if (existing) existing.remove();
+
+    const div = document.createElement('div');
+    div.id = 'diagram';
+    outputEl.appendChild(div);
+
+    const { nodePos, svgWidth, svgHeight } = computeLayout();
+
+    const toggleLabel = diagramSpanAreas ? 'Group: Spanning columns' : 'Group: Within column';
+    let html = `<button class="btn-toggle" onclick="diagramSpanAreas=!diagramSpanAreas; renderDiagram(document.getElementById('output'));">${escHtml(toggleLabel)}</button>`;
+
+    const canvasW = Math.max(svgWidth, 1600);
+    const canvasH = Math.max(svgHeight, 900);
+    html += `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="display:block;">`;
+    html += renderAreaBoxesSvg(nodePos);
+    html += renderEdgesSvg(nodePos);
+    html += renderNodesSvg(nodePos);
+    html += `</svg>`;
+
+    div.innerHTML = html;
+    nodePos_last = nodePos;
+    const svgEl = div.querySelector('svg');
+    div.querySelectorAll('.diagram-node').forEach(g => {
+      g.addEventListener('mousedown', e => startDrag(e, svgEl, +g.dataset.id));
+    });
+    svgEl.addEventListener('mousedown', e => {
+      if (!e.target.closest('.diagram-node')) {
+        selectedNodes.clear();
+        svgEl.querySelectorAll('.diagram-node.selected').forEach(g => g.classList.remove('selected'));
+      }
+    });
+  }
+
+    // ── Drag ────────────────────────────────────────────────────
+    function startDrag(event, svgEl, deviceId) {
+      event.preventDefault();
+
+      if (event.ctrlKey || event.metaKey) {
+        // Toggle selection
+        if (selectedNodes.has(deviceId)) {
+          selectedNodes.delete(deviceId);
+        } else {
+          selectedNodes.add(deviceId);
+        }
+        const g = svgEl.querySelector(`.diagram-node[data-id="${deviceId}"]`);
+        if (g) g.classList.toggle('selected', selectedNodes.has(deviceId));
+        return;
+      }
+
+      // If clicking a node not in the current selection, reset to just this node
+      if (!selectedNodes.has(deviceId)) {
+        selectedNodes.clear();
+        selectedNodes.add(deviceId);
+        svgEl.querySelectorAll('.diagram-node').forEach(g => {
+          g.classList.toggle('selected', +g.dataset.id === deviceId);
+        });
+      }
+
+      // Capture start positions for all selected nodes
+      const nodes = Array.from(selectedNodes).map(id => {
+        const pos = nodePos_last[id];
+        return pos ? { deviceId: id, startX: pos.x, startY: pos.y } : null;
+      }).filter(Boolean);
+
+      const rect = svgEl.getBoundingClientRect();
+      dragState = {
+        svgEl,
+        mouseStartX: event.clientX - rect.left,
+        mouseStartY: event.clientY - rect.top,
+        nodes,
+      };
+    }
+
+    function onDragMove(event) {
+      if (!dragState) return;
+      const { svgEl, mouseStartX, mouseStartY, nodes } = dragState;
+      const rect = svgEl.getBoundingClientRect();
+      const dx = (event.clientX - rect.left) - mouseStartX;
+      const dy = (event.clientY - rect.top)  - mouseStartY;
+
+      const movedPosMap = {};
+      nodes.forEach(({ deviceId, startX, startY }) => {
+        const newX = startX + dx;
+        const newY = startY + dy;
+        const g = svgEl.querySelector(`.diagram-node[data-id="${deviceId}"]`);
+        if (g) g.setAttribute('transform', `translate(${newX},${newY})`);
+        movedPosMap[deviceId] = { ...nodePos_last[deviceId], x: newX, y: newY };
+      });
+
+      updateConnectedEdges(svgEl, movedPosMap);
+    }
+
+    function onDragEnd(event) {
+      if (!dragState) return;
+      const { svgEl, mouseStartX, mouseStartY, nodes } = dragState;
+      const rect = svgEl.getBoundingClientRect();
+      const dx = (event.clientX - rect.left) - mouseStartX;
+      const dy = (event.clientY - rect.top)  - mouseStartY;
+
+      nodes.forEach(({ deviceId, startX, startY }) => {
+        nodePosOverrides[deviceId] = { x: startX + dx, y: startY + dy };
+      });
+      dragState = null;
+      renderDiagram(document.getElementById('output'));
+    }
+
+    function updateConnectedEdges(svgEl, movedPosMap) {
+      const seenEdges = new Set();
+      Object.keys(movedPosMap).forEach(id => {
+        const deviceId = +id;
+        const paths = svgEl.querySelectorAll(`path[data-from="${deviceId}"], path[data-to="${deviceId}"]`);
+        paths.forEach(path => {
+          const key = `${path.dataset.from}_${path.dataset.to}`;
+          if (seenEdges.has(key)) return;
+          seenEdges.add(key);
+
+          const fromId = +path.dataset.from;
+          const toId   = +path.dataset.to;
+          const src = movedPosMap[fromId] || nodePos_last[fromId];
+          const tgt = movedPosMap[toId]   || nodePos_last[toId];
+          if (!src || !tgt) return;
+
+          const { x1, y1, x2, y2, sameCol } = edgeAnchors(src, tgt);
+          let pathD, labelX, labelY;
+          if (!sameCol) {
+            pathD  = `M${x1},${y1} L${x2},${y2}`;
+            labelX = (x1 + x2) / 2;
+            labelY = (y1 + y2) / 2 - 6;
+          } else {
+            pathD  = `M${x1},${y1} C${x1+40},${y1} ${x1+40},${y2} ${x2},${y2}`;
+            labelX = x1 + 48;
+            labelY = (y1 + y2) / 2;
+          }
+          path.setAttribute('d', pathD);
+
+          const labelRects = svgEl.querySelectorAll(`rect[data-label-from="${fromId}"][data-label-to="${toId}"]`);
+          const labelTexts = svgEl.querySelectorAll(`text[data-label-from="${fromId}"][data-label-to="${toId}"]`);
+          labelRects.forEach(r => {
+            const w = +r.getAttribute('width');
+            r.setAttribute('x', labelX - w / 2);
+            r.setAttribute('y', labelY - 11);
+          });
+          labelTexts.forEach(t => {
+            t.setAttribute('x', labelX);
+            t.setAttribute('y', labelY);
+          });
+        });
+      });
+    }
+
+    // ── Validate & Generate ────────────────────────────────────
+    function validateAndGenerate() {
+      const results = validate();
+      const procurement = buildProcurement();
+      renderOutput(results, procurement);
+    }
+
+    // ── Initial render ─────────────────────────────────────────
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup',   onDragEnd);
+
+    // Restore last session from localStorage
+    (function loadSavedState() {
+      const raw = localStorage.getItem('homemediaplan');
+      if (!raw) return;
+      try {
+        const s = JSON.parse(raw);
+        if (Array.isArray(s.devices))     devices     = s.devices;
+        if (Array.isArray(s.connections)) connections = s.connections;
+        if (Array.isArray(s.areas))       areas       = s.areas;
+        if (typeof s.deviceCounter     === 'number') deviceCounter     = s.deviceCounter;
+        if (typeof s.connectionCounter === 'number') connectionCounter = s.connectionCounter;
+        if (typeof s.areaCounter       === 'number') areaCounter       = s.areaCounter;
+      } catch (e) { /* corrupt storage — start fresh */ }
+    })();
+
+    renderAreas();
+    renderDevices();
+    renderConnections();
+  </script>
+
+  <div class="modal-overlay" id="shopping-modal" onclick="if(event.target===this)closeShoppingModal()">
+    <div class="modal">
+      <h3>🛒 Shopping List Prompt</h3>
+      <p class="modal-sub">Copy this and paste it into Claude to get product recommendations.</p>
+      <textarea id="shopping-modal-text" readonly></textarea>
+      <div class="modal-footer">
+        <button id="copy-prompt-btn" class="btn-io" onclick="copyShoppingPrompt()">Copy to clipboard</button>
+        <button onclick="closeShoppingModal()">Close</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

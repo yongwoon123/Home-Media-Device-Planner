@@ -1,0 +1,107 @@
+{
+  "devices": [
+    {
+      "id": 1,
+      "name": "Desktop",
+      "type": "Desktop",
+      "hdmiIn": 0,
+      "hdmiOut": 1,
+      "dpIn": 0,
+      "dpOut": 2,
+      "areaId": 1
+    },
+    {
+      "id": 2,
+      "name": "Monitor",
+      "type": "Monitor",
+      "hdmiIn": 2,
+      "hdmiOut": 0,
+      "dpIn": 1,
+      "dpOut": 0,
+      "areaId": 1
+    },
+    {
+      "id": 3,
+      "name": "PS5",
+      "type": "Console",
+      "hdmiIn": 0,
+      "hdmiOut": 1,
+      "dpIn": 0,
+      "dpOut": 0,
+      "areaId": 2
+    },
+    {
+      "id": 4,
+      "name": "TV",
+      "type": "Monitor",
+      "hdmiIn": 4,
+      "hdmiOut": 0,
+      "dpIn": 0,
+      "dpOut": 0,
+      "areaId": 2
+    },
+    {
+      "id": 5,
+      "name": "DesktopAndPS5",
+      "type": "Display Switch",
+      "hdmiIn": 2,
+      "hdmiOut": 1,
+      "dpIn": 0,
+      "dpOut": 0,
+      "areaId": 2
+    }
+  ],
+  "connections": [
+    {
+      "id": 1,
+      "fromDeviceId": 1,
+      "fromPortType": "DP",
+      "fromPortNum": 1,
+      "toDeviceId": 2,
+      "toPortType": "DP",
+      "toPortNum": 1
+    },
+    {
+      "id": 2,
+      "fromDeviceId": 1,
+      "fromPortType": "HDMI",
+      "fromPortNum": 1,
+      "toDeviceId": 5,
+      "toPortType": "HDMI",
+      "toPortNum": 1
+    },
+    {
+      "id": 3,
+      "fromDeviceId": 3,
+      "fromPortType": "HDMI",
+      "fromPortNum": 1,
+      "toDeviceId": 5,
+      "toPortType": "HDMI",
+      "toPortNum": 2
+    },
+    {
+      "id": 4,
+      "fromDeviceId": 5,
+      "fromPortType": "HDMI",
+      "fromPortNum": 1,
+      "toDeviceId": 4,
+      "toPortType": "HDMI",
+      "toPortNum": 1
+    }
+  ],
+  "areas": [
+    {
+      "id": 1,
+      "name": "1 Area",
+      "color": "#d81b60"
+    },
+    {
+      "id": 2,
+      "name": "2 Area",
+      "color": "#1e88e5"
+    }
+  ],
+  "areaCounter": 2,
+  "deviceCounter": 5,
+  "connectionCounter": 4
+}
